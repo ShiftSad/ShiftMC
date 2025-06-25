@@ -1,5 +1,6 @@
 package dev.shiftsad.core.config;
 
+import org.jetbrains.annotations.NotNull;
 import org.pkl.config.java.Config;
 import org.pkl.config.java.ConfigEvaluator;
 import org.pkl.config.java.NoSuchChildException;
@@ -17,7 +18,7 @@ public class ConfigurationLoader {
 
     private final Config config;
 
-    public ConfigurationLoader(String file) throws IOException {
+    public ConfigurationLoader(@NotNull String file) throws IOException {
         String content = getFileContent(file);
         this.config = evaluateConfiguration(content);
     }
@@ -25,12 +26,12 @@ public class ConfigurationLoader {
     /**
      * Get the content of the configuration file.
      * If the file is not available in the filesystem, it will attempt to create it from the resources.
-     * 
+     *
      * @param fileName the name of the configuration file
      * @return the content of the configuration file as a String
      * @throws IOException if an I/O error occurs while reading or creating the file
      */
-    private String getFileContent(String fileName) throws IOException {
+    private String getFileContent(@NotNull String fileName) throws IOException {
         Path path = Paths.get(fileName);
         File file = path.toFile();
 
@@ -59,7 +60,7 @@ public class ConfigurationLoader {
      * @param text the configuration text to evaluate
      * @return the evaluated Config object
      */
-    private Config evaluateConfiguration(String text) {
+    private Config evaluateConfiguration(@NotNull String text) {
         Config config;
 
         try (var evaluator = ConfigEvaluator.preconfigured()) {

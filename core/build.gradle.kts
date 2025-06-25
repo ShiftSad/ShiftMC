@@ -14,6 +14,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
 
     implementation("org.pkl-lang:pkl-config-java-all:0.28.2")
+    implementation("com.intellij:annotations:12.0")
+    implementation("org.reflections:reflections:0.10.2")
 }
 
 tasks.test {
