@@ -13,8 +13,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 
-    implementation("net.minestom:minestom-snapshots:b39badc77b")
-    implementation("org.projectlombok:lombok:1.18.38")
+    implementation("org.pkl-lang:pkl-config-java-all:0.28.2")
 }
 
 tasks.test {
