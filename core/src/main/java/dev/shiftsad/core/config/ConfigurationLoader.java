@@ -1,0 +1,90 @@
+package dev.shiftsad.core.config;
+
+import org.pkl.config.java.Config;
+import org.pkl.config.java.ConfigEvaluator;
+import org.pkl.config.java.NoSuchChildException;
+import org.pkl.config.java.mapper.ConversionException;
+import org.pkl.core.ModuleSource;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+public class ConfigurationLoader {
+
+    private final Config config;
+
+    public ConfigurationLoader(String file) throws IOException {
+        String content = getFileContent(file);
+        this.config = evaluateConfiguration(content);
+    }
+
+    /**
+     * Get the content of the configuration file.
+     * If the file is not available in the filesystem, it will attempt to create it from the resources.
+     * 
+     * @param fileName the name of the configuration file
+     * @return the content of the configuration file as a String
+     * @throws IOException if an I/O error occurs while reading or creating the file
+     */
+    private String getFileContent(String fileName) throws IOException {
+        Path path = Paths.get(fileName);
+        File file = path.toFile();
+
+        if (!file.exists()) {
+            URL defaultConfig = ConfigurationLoader.class.getResource(fileName);
+
+            boolean result = true;
+            result &= file.createNewFile();
+            result &= file.setWritable(true);
+            result &= file.setReadable(true);
+            if (!result) throw new IOException("Failed to create or set permissions for the configuration file: " + fileName);
+
+            if (defaultConfig != null) {
+                try (var inputStream = defaultConfig.openStream()) {
+                    Files.copy(inputStream, path);
+                }
+            } throw new IOException("Default configuration file not found in resources: " + fileName);
+        }
+
+        return Files.readString(path);
+    }
+
+    /**
+     * Use the PKL ConfigEvaluator to evaluate the configuration text.
+     *
+     * @param text the configuration text to evaluate
+     * @return the evaluated Config object
+     */
+    private Config evaluateConfiguration(String text) {
+        Config config;
+
+        try (var evaluator = ConfigEvaluator.preconfigured()) {
+            config = evaluator.evaluate(ModuleSource.text(text));
+        }
+
+        return config;
+    }
+
+    /**
+     * Returns the child node with the given unqualified name.
+     *
+     * @throws NoSuchChildException if a child with the given name does not exist
+     */
+    public Config get(String key) {
+        return config.get(key);
+    }
+
+    /**
+     * Returns the child node with the given unqualified name and converts it to the specified type.
+     *
+     * @throws NoSuchChildException if a child with the given name does not exist
+     * @throws ConversionException if the value cannot be converted to the given type
+     */
+    public <T> T get(String key, Class<T> type) {
+        return config.get(key).as(type);
+    }
+}
