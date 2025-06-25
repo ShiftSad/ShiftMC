@@ -21,7 +21,11 @@ public class ConfigurationInjector {
         this.loader = loader;
     }
 
-    public void configurate(String packageToScan) throws IllegalAccessException {
+    /**
+     * Scans the specified package for fields annotated with @Value and injects configuration values into them.
+     * @param packageToScan the package to scan for annotated fields
+     */
+    public void configurate(String packageToScan) {
         var reflections = new Reflections(new ConfigurationBuilder()
                 .forPackage(packageToScan)
                 .addScanners(Scanners.FieldsAnnotated));
