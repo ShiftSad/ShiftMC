@@ -1,4 +1,4 @@
-package dev.shift.core.config;
+package dev.shiftsad.core.config;
 
 import dev.shiftsad.core.config.ConfigurationLoader;
 import org.junit.jupiter.api.BeforeEach;

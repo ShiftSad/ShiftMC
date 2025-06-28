@@ -1,6 +1,8 @@
 package dev.shiftsad.core.config;
 
 import org.jetbrains.annotations.NotNull;
+import org.pkl.config.java.NoSuchChildException;
+import org.pkl.config.java.mapper.ConversionException;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
@@ -22,11 +24,16 @@ public class ConfigurationInjector {
     }
 
     /**
-     * Scans the specified package for fields annotated with @Value and injects configuration values into them.
+     * Scans the specified package for static fields annotated with @Value and injects configuration values into them.
+     * <p>
+     * This injector only supports <strong>static</strong> fields. Non-static fields are ignored because
+     * this class does not manage instance lifecycles, and injecting into transient, newly-created
+     * instances is not useful.
+     *
      * @param packageToScan the package to scan for annotated fields
      */
     public void configurate(String packageToScan) {
-        var reflections = new Reflections(new ConfigurationBuilder()
+        Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .forPackage(packageToScan)
                 .addScanners(Scanners.FieldsAnnotated));
 
@@ -38,40 +45,35 @@ public class ConfigurationInjector {
 
         logger.debug("Found {} fields annotated with @Value", annotatedFields.size());
         for (Field field : annotatedFields) {
+            int modifiers = field.getModifiers();
             Class<?> declaringClass = field.getDeclaringClass();
             String fieldName = field.getName();
 
-            Value annotation = field.getAnnotation(Value.class);
-            String configKey = annotation.value();
-
-            boolean isStaticField = Modifier.isStatic(field.getModifiers());
-            if (Modifier.isFinal(field.getModifiers())) {
-                logger.warn("→ Skipping final field: {}.{} (static: {})", declaringClass.getName(), fieldName, isStaticField);
+            if (!Modifier.isStatic(modifiers)) {
+                logger.trace("Skipping non-static field {}.{}. This injector only supports static fields.", declaringClass.getName(), fieldName);
                 continue;
             }
 
-            Object instance = null;
-            if (!isStaticField) {
-                try {
-                    instance = declaringClass.getDeclaredConstructor().newInstance();
-                    logger.debug("→ Created instance of {} for field: {}", declaringClass.getName(), fieldName);
-                } catch (ReflectiveOperationException e) {
-                    logger.error("Failed to create instance of {} for field: {}", declaringClass.getName(), fieldName, e);
-                    continue;
-                }
+            if (Modifier.isFinal(modifiers)) {
+                logger.warn("Cannot inject value into final static field: {}.{}. Skipping.", declaringClass.getName(), fieldName);
+                continue;
             }
 
             try {
+                Value annotation = field.getAnnotation(Value.class);
+                String configKey = annotation.value();
+
                 Object value = loader.get(configKey, field.getType());
                 field.setAccessible(true);
-                field.set(isStaticField ? null : instance, value);
-                logger.debug("→ Set value for {}.{}: {}", declaringClass.getName(), fieldName, value);
-            } catch (IllegalArgumentException e) {
-                logger.error("Failed to set value for {}.{}: {}", declaringClass.getName(), fieldName, e.getMessage(), e);
-            } catch (IllegalAccessException e) {
-                logger.error("Illegal access while setting value for {}.{}: {}", declaringClass.getName(), fieldName, e.getMessage(), e);
+                field.set(null, value);
+
+                logger.debug("Injected value for {}.{}: {}", declaringClass.getName(), fieldName, value);
+            } catch (NoSuchChildException | ConversionException e) {
+                String configKey = field.getAnnotation(Value.class).value();
+                logger.warn("Could not find or convert config key '{}' for field {}.{}. Skipping. Error: {}",
+                        configKey, declaringClass.getName(), fieldName, e.getMessage());
             } catch (Exception e) {
-                logger.error("Unexpected error while setting value for {}.{}: {}", declaringClass.getName(), fieldName, e.getMessage(), e);
+                logger.error("Failed to inject value into field {}.{}: {}", declaringClass.getName(), fieldName, e.getMessage(), e);
             }
         }
     }
