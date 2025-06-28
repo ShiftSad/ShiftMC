@@ -1,0 +1,14 @@
+app {
+  testString = "Hello Pkl"
+  testInt = 123
+  testBoolean = true
+}
+
+db {
+  url = "jdbc:test:db"
+  username = "testuser"
+  password = "testpassword"
+}
+
+missingKeyExample = "This exists"
+badType = "not_an_integer"
