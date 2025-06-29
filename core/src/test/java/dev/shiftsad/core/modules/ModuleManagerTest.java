@@ -1,11 +1,9 @@
 package dev.shiftsad.core.modules;
 
+import dev.shiftsad.core.modules.annotations.DependsOn;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
-
-import java.util.Collections;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -38,8 +36,6 @@ public class ModuleManagerTest {
         assertTrue(exception.getMessage().contains("Module already registered"));
     }
 
-
-
     @Test
     void shouldEnableModuleWithoutDependencies() {
         Module module = spy(new TestModuleA());
@@ -54,8 +50,6 @@ public class ModuleManagerTest {
     void shouldEnableModulesInCorrectOrder() {
         Module moduleA = spy(new TestModuleA());
         Module moduleB = spy(new TestModuleB());
-
-        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
 
         moduleManager.registerModule(moduleA);
         moduleManager.registerModule(moduleB);
@@ -80,7 +74,6 @@ public class ModuleManagerTest {
     @Test
     void shouldThrowExceptionForMissingDependency() {
         Module moduleB = spy(new TestModuleB());
-        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
 
         moduleManager.registerModule(moduleB);
 
@@ -94,11 +87,8 @@ public class ModuleManagerTest {
 
     @Test
     void shouldDetectCircularDependency() {
-        Module moduleA = spy(new TestModuleA());
-        Module moduleB = spy(new TestModuleB());
-
-        when(moduleA.getDependencies()).thenReturn(List.of(TestModuleB.class));
-        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
+        Module moduleA = spy(new TestModuleC());
+        Module moduleB = spy(new TestModuleE());
 
         moduleManager.registerModule(moduleA);
         moduleManager.registerModule(moduleB);
@@ -115,10 +105,7 @@ public class ModuleManagerTest {
     void shouldHandleComplexDependencyChain() {
         Module moduleA = spy(new TestModuleA());
         Module moduleB = spy(new TestModuleB());
-        Module moduleC = spy(new TestModuleC());
-
-        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
-        when(moduleC.getDependencies()).thenReturn(List.of(TestModuleB.class));
+        Module moduleC = spy(new TestModuleD());
 
         moduleManager.registerModule(moduleC);
         moduleManager.registerModule(moduleA);
@@ -137,23 +124,37 @@ public class ModuleManagerTest {
         @Override public void onDisable() {}
         @Override public void reload() {}
         @Override public boolean isReady() { return false; }
-        @Override public List<Class<? extends Module>> getDependencies() { return Collections.emptyList(); }
     }
 
+    @DependsOn(TestModuleA.class)
     private static class TestModuleB implements Module {
         @Override public void onEnable() {}
         @Override public void onDisable() {}
         @Override public void reload() {}
         @Override public boolean isReady() { return false; }
-        @Override public List<Class<? extends Module>> getDependencies() { return Collections.emptyList(); }
     }
 
-    // Added for the complex dependency test
+    @DependsOn(TestModuleE.class)
     private static class TestModuleC implements Module {
         @Override public void onEnable() {}
         @Override public void onDisable() {}
         @Override public void reload() {}
         @Override public boolean isReady() { return false; }
-        @Override public List<Class<? extends Module>> getDependencies() { return Collections.emptyList(); }
+    }
+
+    @DependsOn(TestModuleB.class)
+    private static class TestModuleD implements Module {
+        @Override public void onEnable() {}
+        @Override public void onDisable() {}
+        @Override public void reload() {}
+        @Override public boolean isReady() { return false; }
+    }
+
+    @DependsOn(TestModuleC.class)
+    private static class TestModuleE implements Module {
+        @Override public void onEnable() {}
+        @Override public void onDisable() {}
+        @Override public void reload() {}
+        @Override public boolean isReady() { return false; }
     }
 }
