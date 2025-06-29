@@ -1,14 +1,12 @@
 package dev.shiftsad.core.config;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+import dev.shiftsad.core.config.adapters.ConfigAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.pkl.config.java.Config;
-import org.pkl.config.java.ConfigEvaluator;
-import org.pkl.config.java.NoSuchChildException;
-import org.pkl.config.java.mapper.ConversionException;
-import org.pkl.core.ModuleSource;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -21,7 +19,7 @@ public class ConfigurationLoader {
 
     public ConfigurationLoader(@NotNull String file, @Nullable Path target) throws IOException {
         String content = getFileContent(file, target);
-        this.config = evaluateConfiguration(content);
+        this.config = ConfigFactory.parseString(content).resolve();
     }
 
     /**
@@ -29,8 +27,8 @@ public class ConfigurationLoader {
      * If the file is not available in the filesystem, it will attempt to create it from the resources.
      *
      * @param fileName the name of the configuration file
-     * @return the content of the configuration file as a String
      * @throws IOException if an I/O error occurs while reading or creating the file
+     * @return the content of the configuration file as a String
      */
     private String getFileContent(@NotNull String fileName, @Nullable Path target) throws IOException {
         Path path = target != null ? target.resolve(fileName) : Paths.get(fileName);
@@ -54,44 +52,35 @@ public class ConfigurationLoader {
     }
 
     /**
-     * Use the PKL ConfigEvaluator to evaluate the configuration text.
-     *
-     * @param text the configuration text to evaluate
-     * @return the evaluated Config object
-     */
-    private Config evaluateConfiguration(@NotNull String text) {
-        Config config;
-
-        try (var evaluator = ConfigEvaluator.preconfigured()) {
-            config = evaluator.evaluate(ModuleSource.text(text));
-        }
-
-        return config;
-    }
-
-    /**
-     * Returns the child node with the given unqualified name.
+     * Returns the value at the given path as a ConfigValue.
      * Allows for nested keys using dot notation (e.g., "parent.child").
-     * GitHub issue related to warnings: <a href="https://github.com/apple/pkl/issues/1109">https://github.com/apple/pkl/issues/1109</a>
      *
-     * @throws NoSuchChildException if a child with the given name does not exist
+     * @throws com.typesafe.config.ConfigException.Missing if the path does not exist
      */
-    public Config get(String key) {
-        String[] parts = key.split("\\.");
-        Config current = config;
-        for (String part : parts) {
-            current = current.get(part);
-        }
-        return current;
+    public ConfigValue get(String key) {
+        return config.getValue(key);
     }
 
     /**
-     * Returns the child node with the given unqualified name and converts it to the specified type.
+     * Returns the value at the given path and converts it to the specified type.
      *
-     * @throws NoSuchChildException if a child with the given name does not exist
-     * @throws ConversionException if the value cannot be converted to the given type
+     * @throws com.typesafe.config.ConfigException.Missing if the path does not exist
+     */
+    public <T> T get(String key, ConfigAdapter<T> adapter) {
+        return adapter.fromConfig(config, key);
+    }
+
+    /**
+     * Returns the value at the given path and converts it to the specified type.
+     *
+     * @param key the configuration key to retrieve
+     * @param type the class type to convert the value to
+     * @return the value at the specified key converted to the specified type
+     * @param <T> the type to convert the value to
+     * @throws IllegalStateException if no adapter is registered for the specified type
      */
     public <T> T get(String key, Class<T> type) {
-        return get(key).as(type);
+        ConfigAdapter<T> adapter = AdapterRegistry.getAdapter(type);
+        return get(key, adapter);
     }
 }

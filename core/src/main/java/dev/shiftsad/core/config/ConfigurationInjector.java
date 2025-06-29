@@ -1,8 +1,7 @@
 package dev.shiftsad.core.config;
 
+import dev.shiftsad.core.config.adapters.ConfigAdapter;
 import org.jetbrains.annotations.NotNull;
-import org.pkl.config.java.NoSuchChildException;
-import org.pkl.config.java.mapper.ConversionException;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
@@ -16,7 +15,6 @@ import java.util.Set;
 public class ConfigurationInjector {
 
     private final Logger logger = LoggerFactory.getLogger(ConfigurationInjector.class);
-
     private final @NotNull ConfigurationLoader loader;
 
     public ConfigurationInjector(@NotNull ConfigurationLoader loader) {
@@ -25,12 +23,6 @@ public class ConfigurationInjector {
 
     /**
      * Scans the specified package for static fields annotated with @Value and injects configuration values into them.
-     * <p>
-     * This injector only supports <strong>static</strong> fields. Non-static fields are ignored because
-     * this class does not manage instance lifecycles, and injecting into transient, newly-created
-     * instances is not useful.
-     *
-     * @param packageToScan the package to scan for annotated fields
      */
     public void configurate(String packageToScan) {
         Reflections reflections = new Reflections(new ConfigurationBuilder()
@@ -63,17 +55,19 @@ public class ConfigurationInjector {
                 Value annotation = field.getAnnotation(Value.class);
                 String configKey = annotation.value();
 
-                Object value = loader.get(configKey, field.getType());
+                @SuppressWarnings("unchecked")
+                ConfigAdapter<Object> adapter = (ConfigAdapter<Object>) AdapterRegistry.getAdapter(field.getType());
+
+                Object value = loader.get(configKey, adapter);
                 field.setAccessible(true);
                 field.set(null, value);
 
                 logger.debug("Injected value for {}.{}: {}", declaringClass.getName(), fieldName, value);
-            } catch (NoSuchChildException | ConversionException e) {
-                String configKey = field.getAnnotation(Value.class).value();
-                logger.warn("Could not find or convert config key '{}' for field {}.{}. Skipping. Error: {}",
-                        configKey, declaringClass.getName(), fieldName, e.getMessage());
+            } catch (IllegalStateException e) {
+                logger.warn("No adapter registered for type {} (field {}.{}). Skipping.", field.getType(), declaringClass.getName(), fieldName);
             } catch (Exception e) {
-                logger.error("Failed to inject value into field {}.{}: {}", declaringClass.getName(), fieldName, e.getMessage(), e);
+                String configKey = field.getAnnotation(Value.class).value();
+                logger.error("Failed to inject value into field {}.{} (config key '{}'): {}", declaringClass.getName(), fieldName, configKey, e.getMessage(), e);
             }
         }
     }
