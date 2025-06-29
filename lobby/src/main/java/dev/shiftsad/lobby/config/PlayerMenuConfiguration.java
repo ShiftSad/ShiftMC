@@ -3,14 +3,14 @@ package dev.shiftsad.lobby.config;
 import net.minestom.server.coordinate.Pos;
 
 public class PlayerMenuConfiguration {
-    private final Pos npcPosition;
-    private final Pos cameraPosition;
-    private final Pos portalPosition;
+    private Pos npcPosition;
+    private Pos cameraPosition;
+    private Pos portalPosition;
 
-    private final int animationDuration;
+    private int animationDuration;
 
-    private final boolean npcDisplayName;
-    private final boolean npcSkin;
+    private boolean npcDisplayName;
+    private boolean npcSkin;
 
-    private final String targetServer;
+    private String targetServer;
 }
