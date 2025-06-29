@@ -2,8 +2,8 @@ package dev.shiftsad.core.modules;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -21,15 +21,13 @@ public class ModuleManagerTest {
 
     @Test
     void shouldRegisterModule() {
-        Module module = createMockModule(Collections.emptyList());
-
+        Module module = spy(new TestModuleA());
         assertDoesNotThrow(() -> moduleManager.registerModule(module));
     }
 
     @Test
     void shouldThrowExceptionWhenRegisteringDuplicateModule() {
-        Module module = createMockModule(Collections.emptyList());
-
+        Module module = spy(new TestModuleA());
         moduleManager.registerModule(module);
 
         IllegalArgumentException exception = assertThrows(
@@ -40,9 +38,11 @@ public class ModuleManagerTest {
         assertTrue(exception.getMessage().contains("Module already registered"));
     }
 
+
+
     @Test
     void shouldEnableModuleWithoutDependencies() {
-        Module module = createMockModule(Collections.emptyList());
+        Module module = spy(new TestModuleA());
 
         moduleManager.registerModule(module);
         moduleManager.enableModules();
@@ -52,20 +52,23 @@ public class ModuleManagerTest {
 
     @Test
     void shouldEnableModulesInCorrectOrder() {
-        Module moduleA = createMockModule(Collections.emptyList());
-        Module moduleB = createMockModule(Arrays.asList(moduleA.getClass()));
+        Module moduleA = spy(new TestModuleA());
+        Module moduleB = spy(new TestModuleB());
+
+        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
 
         moduleManager.registerModule(moduleA);
         moduleManager.registerModule(moduleB);
         moduleManager.enableModules();
 
-        verify(moduleA, times(1)).onEnable();
-        verify(moduleB, times(1)).onEnable();
+        InOrder inOrder = inOrder(moduleA, moduleB);
+        inOrder.verify(moduleA).onEnable();
+        inOrder.verify(moduleB).onEnable();
     }
 
     @Test
     void shouldNotEnableModuleTwice() {
-        Module module = createMockModule(Collections.emptyList());
+        Module module = spy(new TestModuleA());
 
         moduleManager.registerModule(module);
         moduleManager.enableModules();
@@ -76,7 +79,8 @@ public class ModuleManagerTest {
 
     @Test
     void shouldThrowExceptionForMissingDependency() {
-        Module moduleB = createMockModule(Arrays.asList(TestModuleA.class));
+        Module moduleB = spy(new TestModuleB());
+        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
 
         moduleManager.registerModule(moduleB);
 
@@ -93,8 +97,8 @@ public class ModuleManagerTest {
         Module moduleA = spy(new TestModuleA());
         Module moduleB = spy(new TestModuleB());
 
-        when(moduleA.getDependencies()).thenReturn(Arrays.asList(TestModuleB.class));
-        when(moduleB.getDependencies()).thenReturn(Arrays.asList(TestModuleA.class));
+        when(moduleA.getDependencies()).thenReturn(List.of(TestModuleB.class));
+        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
 
         moduleManager.registerModule(moduleA);
         moduleManager.registerModule(moduleB);
@@ -109,72 +113,47 @@ public class ModuleManagerTest {
 
     @Test
     void shouldHandleComplexDependencyChain() {
-        Module moduleA = createMockModule(Collections.emptyList());
-        Module moduleB = createMockModule(Arrays.asList(moduleA.getClass()));
-        Module moduleC = createMockModule(Arrays.asList(moduleB.getClass()));
+        Module moduleA = spy(new TestModuleA());
+        Module moduleB = spy(new TestModuleB());
+        Module moduleC = spy(new TestModuleC());
 
+        when(moduleB.getDependencies()).thenReturn(List.of(TestModuleA.class));
+        when(moduleC.getDependencies()).thenReturn(List.of(TestModuleB.class));
+
+        moduleManager.registerModule(moduleC);
         moduleManager.registerModule(moduleA);
         moduleManager.registerModule(moduleB);
-        moduleManager.registerModule(moduleC);
+
         moduleManager.enableModules();
 
-        verify(moduleA, times(1)).onEnable();
-        verify(moduleB, times(1)).onEnable();
-        verify(moduleC, times(1)).onEnable();
+        InOrder inOrder = inOrder(moduleA, moduleB, moduleC);
+        inOrder.verify(moduleA).onEnable();
+        inOrder.verify(moduleB).onEnable();
+        inOrder.verify(moduleC).onEnable();
     }
 
-    private Module createMockModule(List<Class<? extends Module>> dependencies) {
-        Module module = mock(Module.class);
-        when(module.getDependencies()).thenReturn(dependencies);
-        return module;
-    }
-
-    // Classes auxiliares para testes
     private static class TestModuleA implements Module {
-        @Override
-        public void onEnable() {
-        }
-
-        @Override
-        public void onDisable() {
-        }
-
-        @Override
-        public void reload() {
-        }
-
-        @Override
-        public boolean isReady() {
-            return false;
-        }
-
-        @Override
-        public List<Class<? extends Module>> getDependencies() {
-            return Collections.emptyList();
-        }
+        @Override public void onEnable() {}
+        @Override public void onDisable() {}
+        @Override public void reload() {}
+        @Override public boolean isReady() { return false; }
+        @Override public List<Class<? extends Module>> getDependencies() { return Collections.emptyList(); }
     }
 
     private static class TestModuleB implements Module {
-        @Override
-        public void onEnable() {
-        }
+        @Override public void onEnable() {}
+        @Override public void onDisable() {}
+        @Override public void reload() {}
+        @Override public boolean isReady() { return false; }
+        @Override public List<Class<? extends Module>> getDependencies() { return Collections.emptyList(); }
+    }
 
-        @Override
-        public void onDisable() {
-        }
-
-        @Override
-        public void reload() {
-        }
-
-        @Override
-        public boolean isReady() {
-            return false;
-        }
-
-        @Override
-        public List<Class<? extends Module>> getDependencies() {
-            return Collections.emptyList();
-        }
+    // Added for the complex dependency test
+    private static class TestModuleC implements Module {
+        @Override public void onEnable() {}
+        @Override public void onDisable() {}
+        @Override public void reload() {}
+        @Override public boolean isReady() { return false; }
+        @Override public List<Class<? extends Module>> getDependencies() { return Collections.emptyList(); }
     }
 }

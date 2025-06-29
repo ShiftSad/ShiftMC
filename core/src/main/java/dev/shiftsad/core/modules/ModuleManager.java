@@ -10,6 +10,7 @@ import java.util.Set;
 public class ModuleManager {
 
     private final Map<Class<? extends Module>, Module> modules = new HashMap<>();
+    private final Set<Class<? extends Module>> enabledModules = new HashSet<>();
 
     /**
      * Registers a module in the module manager.
@@ -29,10 +30,8 @@ public class ModuleManager {
      * This method will enable each module and its dependencies recursively.
      */
     public void enableModules() {
-        Set<Module> enabled = new HashSet<>();
         for (Module module : modules.values()) {
-            Set<Module> visiting = new HashSet<>();
-            enableModuleWithDependencies(module, enabled, visiting);
+            enableModuleWithDependencies(module, new HashSet<>());
         }
     }
 
@@ -42,26 +41,28 @@ public class ModuleManager {
      * Dependencies are enabled recursively before the module itself.
      *
      * @param module the module to enable
-     * @param enabled a set of already enabled modules to avoid re-enabling
      * @param visiting a set of modules currently being visited to detect cycles
      */
-    private void enableModuleWithDependencies(Module module, @NotNull Set<Module> enabled, Set<Module> visiting) {
-        if (enabled.contains(module)) return;
+    private void enableModuleWithDependencies(Module module, @NotNull Set<Class<? extends Module>> visiting) {
+        Class<? extends Module> moduleClass = module.getClass();
 
-        if (visiting.contains(module)) {
+        if (enabledModules.contains(moduleClass)) return;
+
+        if (visiting.contains(moduleClass)) {
             throw new RuntimeException("Circular dependency detected involving: " + module.getClass().getName());
         }
 
-        visiting.add(module);
+        visiting.add(moduleClass);
 
         for (Class<? extends Module> dep : module.getDependencies()) {
             Module depModule = modules.get(dep);
-            if (depModule == null) throw new RuntimeException("Missing dependency: " + dep.getName());
-            enableModuleWithDependencies(depModule, enabled, visiting);
+            if (depModule == null) throw new RuntimeException("Missing dependency: " + dep.getName() + " for module " + moduleClass.getName());
+            enableModuleWithDependencies(depModule, visiting);
         }
 
-        visiting.remove(module);
+        visiting.remove(moduleClass);
         module.onEnable();
-        enabled.add(module);
+
+        enabledModules.add(moduleClass);
     }
 }
