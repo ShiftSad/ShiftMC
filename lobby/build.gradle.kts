@@ -15,6 +15,7 @@ dependencies {
 
     implementation("net.minestom:minestom-snapshots:b39badc77b")
     implementation("org.projectlombok:lombok:1.18.38")
+    implementation(":core")
 }
 
 tasks.test {
