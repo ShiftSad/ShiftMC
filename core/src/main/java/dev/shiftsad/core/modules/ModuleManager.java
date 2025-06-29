@@ -1,5 +1,6 @@
 package dev.shiftsad.core.modules;
 
+import dev.shiftsad.core.modules.annotations.DependsOn;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
@@ -54,10 +55,14 @@ public class ModuleManager {
 
         visiting.add(moduleClass);
 
-        for (Class<? extends Module> dep : module.getDependencies()) {
-            Module depModule = modules.get(dep);
-            if (depModule == null) throw new RuntimeException("Missing dependency: " + dep.getName() + " for module " + moduleClass.getName());
-            enableModuleWithDependencies(depModule, visiting);
+
+        DependsOn dependsOn = moduleClass.getAnnotation(DependsOn.class);
+        if (dependsOn != null) {
+            for (Class<? extends Module> dep : dependsOn.value()) {
+                Module depModule = modules.get(dep);
+                if (depModule == null) throw new RuntimeException("Missing dependency: " + dep.getName() + " for module " + moduleClass.getName());
+                enableModuleWithDependencies(depModule, visiting);
+            }
         }
 
         visiting.remove(moduleClass);
